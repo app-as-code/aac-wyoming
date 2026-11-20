@@ -1,0 +1,104 @@
+services:
+  # --- Main Application Service ---
+  aac-wyoming-piper:
+    image: "rhasspy/wyoming-piper:latest"
+    container_name: "aac-wyoming-piper"
+    hostname: "wyoming"
+    restart: "always"
+
+    command:
+      - "--voice"
+      - "de_DE-thorsten-high"
+      - "--uri"
+      - "tcp://0.0.0.0:10200"
+      - "--data-dir"
+      - "/data"
+      - "--download-dir"
+      - "/data"
+
+    env_file:
+      - .env
+    ports:
+      - "10200:10200/tcp"
+
+    volumes:
+      - "/export/docker/aac-wyoming-piper/piper_data:/data"
+
+    networks:
+      - exposed
+      - interconnect
+      - secured
+      - stack_internal
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.aac-wyoming-piper.rule: "Host(`wyoming.example.com`)"
+      traefik.http.routers.aac-wyoming-piper.entrypoints: "websecure"
+      traefik.http.routers.aac-wyoming-piper.tls: "true"
+      traefik.http.routers.aac-wyoming-piper.tls.certresolver: "ionos"
+      traefik.docker.network: "services-secured"
+      traefik.http.services.aac-wyoming-piper.loadbalancer.server.port: "10200"
+      traefik.http.services.aac-wyoming-piper.loadbalancer.server.scheme: "http"
+      auto-dns.createWildcard.aac-wyoming-piper: "false"
+      auto-dns.customDNS.aac-wyoming-piper: "true"
+      auto-dns.customDOMAIN.aac-wyoming-piper: "example.com"
+      auto-dns.customHost.aac-wyoming-piper: "wyoming"
+      homepage.group: "Backend - Services"
+      homepage.name: "Wyoming Voice Services"
+      homepage.href: "https://wyoming.example.com"
+      homepage.icon: "/icons/icons8-microphone-100.png"
+      homepage.description: "Wyoming-Protokoll Sprachdienste — Piper TTS & Faster Whisper STT"
+
+
+    depends_on:
+      aac-wyoming-whisper:
+        condition: service_started
+
+
+  # --- Service Dependencies (Sidecars) ---
+  aac-wyoming-whisper:
+    image: "rhasspy/wyoming-whisper:latest"
+    container_name: "aac-wyoming-whisper"
+    restart: "always"
+    
+    command:
+      - "--model"
+      - "small-int8"
+      - "--language"
+      - "de"
+      - "--uri"
+      - "tcp://0.0.0.0:10300"
+      - "--data-dir"
+      - "/data"
+      - "--download-dir"
+      - "/data"
+
+
+
+    ports:
+      - "10300:10300/tcp"
+
+    volumes:
+      - "/export/docker/aac-wyoming-piper/whisper_data:/data"
+
+    networks:
+      - stack_internal
+
+
+
+
+
+networks:
+  secured:
+    name: "services-secured"
+    external: true
+  exposed:
+    name: "services-exposed"
+    external: true
+  interconnect:
+    name: "docker-default"
+    external: true
+  stack_internal:
+    name: "aac-wyoming-piper_stack_internal"
+    driver: "bridge"
+

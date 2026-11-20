@@ -1,0 +1,108 @@
+service:
+  name: aac-wyoming-piper
+  friendly_name: Wyoming Voice Services
+  image_repo: rhasspy/wyoming-piper
+  image_tag: latest
+  description: Wyoming-Protokoll Sprachdienste — Piper TTS & Faster Whisper STT
+  icon: /icons/icons8-microphone-100.png
+  category: Backend - Services
+  stage: prod
+  hostname: wyoming
+ports:
+- name: piper
+  port: 10200
+  external_port: 10200
+  protocol: TCP
+config:
+  domain_name: example.com
+  generate_hostname: false
+  integrations:
+    homepage:
+      enabled: true
+    autodns:
+      enabled: true
+    traefik:
+      enabled: true
+      cert_resolver: ionos
+      entrypoint: websecure
+stage_overrides:
+  prod:
+    config:
+      generate_hostname: false
+    service:
+      hostname: wyoming
+environment:
+  SERVICE_IMAGE_TAG: latest
+  SERVICE_DOMAIN_NAME: example.com
+  CUSTOM_NAME: Wyoming Voice
+  SERVICE_NAME_LOWERCASE: aac-wyoming
+  SERVICE_NAME: aac-wyoming
+  SERVICE_HOSTNAME: aac-wyoming
+  TZ: Europe/Berlin
+  PUID: '1000'
+  PGID: '1000'
+volumes:
+  piper_data:
+    description: Persistent cache for Piper voice models
+  whisper_data:
+    description: Persistent cache for Wyoming Faster Whisper models
+deployment_strategy:
+  main:
+    enabled: true
+    target_stage: prod
+  dev:
+    enabled: true
+    target_stage: dev
+  test:
+    enabled: false
+    target_stage: test
+  ansible-dev:
+    enabled: true
+    target_stage: dev
+  iac-dev:
+    enabled: true
+    target_stage: dev
+  template-dev:
+    enabled: true
+    target_stage: dev
+deployments:
+  docker_compose:
+    restart_policy: always
+    host_base_path: /export/docker
+    command:
+    - --voice
+    - de_DE-thorsten-high
+    - --uri
+    - tcp://0.0.0.0:10200
+    - --data-dir
+    - /data
+    - --download-dir
+    - /data
+    volumes:
+    - piper_data:/data
+dependencies:
+  whisper:
+    name: aac-wyoming-whisper
+    image_repo: rhasspy/wyoming-whisper
+    image_tag: latest
+    restart_policy: always
+    inherit_global_env: false
+    command:
+    - --model
+    - small-int8
+    - --language
+    - de
+    - --uri
+    - tcp://0.0.0.0:10300
+    - --data-dir
+    - /data
+    - --download-dir
+    - /data
+    ports:
+    - 10300:10300
+    volumes:
+      whisper_data:
+        target: /data
+        description: Cached Faster Whisper models and runtime data
+    networks_to_join:
+    - stack_internal
